@@ -5,10 +5,10 @@ from scipy.fftpack import fft
 
 file_dict = "./raw_data/"
 file_path = []
-for i in range(10):
+for i in range(35):
     data = np.transpose(io.loadmat(file_dict + "S%d.mat" % (i + 1))["data"])
     data = data.transpose(0, 1, 3, 2)
-    data = fft(data)
+    data = fft(data[:,:,:,500:1000])
     data = np.concatenate((data.real, data.imag), axis=-1)
     np.save("./data/S%d.npy" % (i + 1), data)
 

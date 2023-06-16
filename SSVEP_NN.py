@@ -54,7 +54,7 @@ class MultiHeadAttentionLayer(nn.Module):
 
 
 class PositionwiseFeedforwardLayer(nn.Module):
-    def __init__(self, hid_dim, dropout=0.1):
+    def __init__(self, hid_dim, dropout=0.2):
         super(PositionwiseFeedforwardLayer, self).__init__()
 
         pf_dim = hid_dim * 4
@@ -92,7 +92,7 @@ class AttentionBlock(nn.Module):
 
 
 class SSVEP_NN(torch.nn.Module):
-    def __init__(self, input_len=3000, input_channels=64, output_len=40):
+    def __init__(self, input_len=1000, input_channels=64, output_len=40):
         super(SSVEP_NN, self).__init__()
         kernel_size = 1
         n_heads = 2
@@ -103,9 +103,10 @@ class SSVEP_NN(torch.nn.Module):
         self.comb = nn.Sequential(
             nn.Conv1d(self.input_channels, self.input_channels // 2, kernel_size, padding=kernel_size // 2),
             nn.Conv1d(self.input_channels // 2, self.input_channels // 4, kernel_size, padding=kernel_size // 2),
-            nn.Conv1d(self.input_channels // 4, 1, kernel_size, padding=kernel_size // 2))
-        self.attn = nn.Sequential(AttentionBlock(input_len, n_heads), AttentionBlock(input_len, n_heads))
-        self.out = nn.Sequential(nn.ReLU(), nn.Linear(input_len, output_len))
+            nn.Conv1d(self.input_channels // 4, 1, kernel_size, padding=kernel_size // 2),
+            nn.Dropout(0.2))
+        self.attn = nn.Sequential(AttentionBlock(input_len, n_heads),AttentionBlock(input_len, n_heads))
+        self.out = nn.Sequential(nn.Dropout(0.2), nn.ReLU(), nn.Linear(input_len, output_len))
 
     def forward(self, x):
         x = self.comb(x)
@@ -117,7 +118,7 @@ class SSVEP_NN(torch.nn.Module):
 
 
 class My_Dataset(Dataset):
-    def __init__(self, path, ID, file_num=10, class_num=40):
+    def __init__(self, path, ID, file_num=35, class_num=40):
         super(My_Dataset, self).__init__()
         self.path = path
         self.ID = ID
@@ -144,7 +145,7 @@ class My_Dataset(Dataset):
 
 if __name__ == "__main__":
 
-    model_ID = 10
+    model_ID = 1
 
     print("[*]Load data")
     train_dataset = My_Dataset(data_path, model_ID)
@@ -155,12 +156,12 @@ if __name__ == "__main__":
         model = torch.load(models_save_path + "/model%d.pth" % model_ID)
     else:
         print("[*]Create model")
-        model = SSVEP_NN(3000, 64, 40)
+        model = SSVEP_NN(1000, 64, 40)
 
     device = torch.device("cuda")
     model = model.to(device)
     loss = nn.CrossEntropyLoss().to(device)
-    optimizer = op.Adam(model.parameters(), lr=1e-4)
+    optimizer = op.Adam(model.parameters(), lr=1e-6)
 
     train_epochs = 10
     loss_hist = []
@@ -182,13 +183,13 @@ if __name__ == "__main__":
             optimizer.step()
         print("[*]Epoch:%d" % (epochs + 1), "\tLoss:", loss_out.item())
         loss_hist.append(loss_out.item())
+    print("[*]Train over")
 
-print("[*]Train over")
-plt.plot([i+1 for i in range(train_epochs)],loss_hist, 'ro-', alpha=1, linewidth=1, label='Loss')
-plt.legend(loc='best')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.show()
+    torch.save(model, models_save_path + "/model%d.pth" % model_ID)
+    print("[*]Save model")
 
-torch.save(model, models_save_path + "/model%d.pth" % model_ID)
-print("[*]Save model")
+    plt.plot([i + 1 for i in range(train_epochs)], loss_hist, 'ro-', alpha=1, linewidth=1, label='Loss')
+    plt.legend(loc='best')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
